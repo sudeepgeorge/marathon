@@ -5,11 +5,14 @@ import datetime
 import threading
 import serial
 import sys
+import random
 
 global start_time
 
 COM_PORT=4
+ROWS    =30
 tag_data={}
+tag_time=[]
 
 #---------------------------------------------------------------------------
 class CustomDataTable(gridlib.PyGridTableBase):
@@ -147,13 +150,37 @@ class Tag(threading.Thread):
 
 
 
+##Dummy Class which mimics the hardware! Used for testing.
+#class Tag(threading.Thread):
+#    def __init__(self):
+#        threading.Thread.__init__(self)
+#        self._read_port=True
+#        self.setDaemon(1)
+#
+#        for i in range(1,ROWS+1):
+#            tag_data[i]=0
+#        self.start()
+#
+#    def run(self):
+#	while self._read_port:
+#            now=datetime.datetime.now()
+#	    tag_id = random.randint(1,ROWS)
+#	    time.sleep(random.randint(1,10))
+#            tag_data[tag_id]=now
+#	    print tag_id, now.strftime("%H:%M:%S")
+#            sys.stdout.flush()
+#
+#    def abort(self):
+#        print "In tag abort"
+#        self._read_port=False
+#
 
 #---------------------------------------------------------------------------
 class TestFrame(wx.Frame):
 
     def __init__(self, parent):
         global start_time
-        wx.Frame.__init__(self, parent, -1, "Marathon Timer")
+        wx.Frame.__init__(self, parent, -1, "Marathon Timer",size=(400,700))
 
 
         start_time = datetime.datetime.now()
@@ -161,14 +188,19 @@ class TestFrame(wx.Frame):
 
 
 
-        self.data = [
-            [001, "User 1", start_time.strftime("%H:%M:%S"), current_time.strftime("%H:%M:%S"),self.timediff(start_time,current_time)],
-            [002, "User 2", start_time.strftime("%H:%M:%S"), current_time.strftime("%H:%M:%S"),self.timediff(start_time,current_time)],
-            [003, "User 3", start_time.strftime("%H:%M:%S"), current_time.strftime("%H:%M:%S"),self.timediff(start_time,current_time)],
-            ]
+	self.data=self.createdata()
         self.initwin()
         self.initmenu()
         self.tag=Tag()
+
+    def createdata(self):
+	table=[]
+	now=datetime.datetime.now().strftime("%H:%M:%S")
+	for i in range(1,ROWS+1):
+		row=[i,"User "+str(i),now,now,0]
+		table.append(row)
+
+	return table
 
 
     def timediff(self,start_time,current_time):
@@ -260,7 +292,7 @@ class TestFrame(wx.Frame):
     def OnButton(self, evt):
         global start_time
 
-        for i in range(3):
+        for i in range(ROWS):
             current_time = datetime.datetime.now()
             #self.data[i][3] = current_time.strftime("%H:%M:%S")
             id = self.data[i][0]
