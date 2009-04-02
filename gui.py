@@ -12,7 +12,7 @@ global start_time
 COM_PORT=4
 ROWS    =30
 tag_data={}
-tag_time=[]
+tag_time={}
 
 #---------------------------------------------------------------------------
 class CustomDataTable(gridlib.PyGridTableBase):
@@ -26,6 +26,8 @@ class CustomDataTable(gridlib.PyGridTableBase):
                           gridlib.GRID_VALUE_STRING,
                           gridlib.GRID_VALUE_STRING,
                           ]
+
+
     def GetNumberRows(self):
         return len(self.data)
     def GetNumberCols(self):
@@ -40,6 +42,18 @@ class CustomDataTable(gridlib.PyGridTableBase):
             return self.data[row][col]
         except IndexError:
             return ''
+
+    def Update(self):
+        self.GetView().BeginBatch() 
+        msg = gridlib.GridTableMessage(self, gridlib.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
+        self.GetView().ProcessTableMessage(msg)
+        
+        
+        self.GetView().EndBatch()
+
+
+
+
     def SetValue(self, row, col, value):
         def innerSetValue(row, col, value):
             try:
@@ -92,12 +106,18 @@ class CustomDataTable(gridlib.PyGridTableBase):
 class CustTableGrid(gridlib.Grid):
     def __init__(self, parent, data):
         gridlib.Grid.__init__(self, parent, -1)
-        table = CustomDataTable(data)
-        self.SetTable(table, True)
+        self.table = CustomDataTable(data)
+        self.SetTable(self.table, True)
         self.SetRowLabelSize(0)
         self.SetMargins(0,0)
         self.AutoSizeColumns(False)
         gridlib.EVT_GRID_CELL_LEFT_DCLICK(self, self.OnLeftDClick)
+
+        self.red_attr=gridlib.GridCellAttr()
+        self.red_attr.SetBackgroundColour("red")
+
+        self.white_attr=gridlib.GridCellAttr()
+        self.white_attr.SetBackgroundColour("white")
 
 
 ##        self.table.SetCellTextColour(1, 1, "red")
@@ -115,6 +135,19 @@ class CustTableGrid(gridlib.Grid):
         if self.CanEnableCellControl():
             self.EnableCellEditControl()
 
+    def Update(self):
+        print "In Update"
+        print tag_time
+        self.table.Update()
+        for i in range(1,ROWS+1):
+            if(tag_time[i]==0):
+                self.SetAttr((i-1),4,self.red_attr)
+                self.red_attr.IncRef()
+            else:
+                self.SetAttr((i-1),4,self.white_attr)
+                self.white_attr.IncRef()
+                
+
 
 #---------------------------------------------------------------------------
 class Tag(threading.Thread):
@@ -130,7 +163,7 @@ class Tag(threading.Thread):
         self.start()
 
     def run(self):
-	while self._read_port:
+        while self._read_port:
             packet=self.master_port.read(8)
             now=datetime.datetime.now()
             if (packet[0]=='*') and (packet[1]=='T') and (packet[5]=='#'):
@@ -146,7 +179,7 @@ class Tag(threading.Thread):
     def abort(self):
         print "In tag abort"
         self.master_port.close()
-	self._read_port=False
+        self._read_port=False
 
 
 
@@ -188,26 +221,29 @@ class TestFrame(wx.Frame):
 
 
 
-	self.data=self.createdata()
+        self.data=self.createdata()
         self.initwin()
         self.initmenu()
         self.tag=Tag()
 
     def createdata(self):
-	table=[]
-	now=datetime.datetime.now().strftime("%H:%M:%S")
-	for i in range(1,ROWS+1):
-		row=[i,"User "+str(i),now,now,0]
-		table.append(row)
-
-	return table
+        table=[]
+        now=datetime.datetime.now().strftime("%H:%M:%S")
+        for i in range(1,ROWS+1):
+            row=[i,"User "+str(i),now,now,0]
+            table.append(row)
+        return table
 
 
     def timediff(self,start_time,current_time):
-        start_delta = datetime.timedelta(hours=start_time.hour,minutes=start_time.minute,seconds=start_time.second)
-        current_delta = datetime.timedelta(hours=current_time.hour,minutes=current_time.minute,seconds=current_time.second)
-        elapsed_time = current_delta - start_delta
-        return elapsed_time
+        try:
+            start_delta = datetime.timedelta(hours=start_time.hour,minutes=start_time.minute,seconds=start_time.second)
+            current_delta = datetime.timedelta(hours=current_time.hour,minutes=current_time.minute,seconds=current_time.second)
+            elapsed_time = current_delta - start_delta
+            return elapsed_time
+        except:
+            print current_time
+            print start_time
 
     def validateTime(self,entered_time):
         if len(entered_time) is not 8:#len of 00:00:00
@@ -230,12 +266,12 @@ class TestFrame(wx.Frame):
         self.ref= None
         self.p = wx.Panel(self, -1, style=0)
         b = wx.Button(self.p, -1, "Update")
-        grid = CustTableGrid(self.p,self.data)
+        self.grid = CustTableGrid(self.p,self.data)
         b.SetDefault()
         self.Bind(wx.EVT_BUTTON, self.OnButton, b)
         b.Bind(wx.EVT_SET_FOCUS, self.OnButtonFocus)
         bs = wx.BoxSizer(wx.VERTICAL)
-        bs.Add(grid, 1, wx.GROW|wx.ALL, 5)
+        bs.Add(self.grid, 1, wx.GROW|wx.ALL, 5)
         bs.Add(b)
         self.p.SetSizer(bs)
         self.Bind(wx.EVT_CLOSE,self.OnCloseWindow)
@@ -290,7 +326,13 @@ class TestFrame(wx.Frame):
 
 
     def OnButton(self, evt):
-        global start_time
+        self.updateData()
+        self.SetStatusText("SITPL Demo Application - RFID based Marathon Timer")
+        self.grid.Update()
+
+
+    def updateData(self):
+        global start_time     
 
         for i in range(ROWS):
             current_time = datetime.datetime.now()
@@ -304,16 +346,10 @@ class TestFrame(wx.Frame):
             self.data[i][4] = self.timediff(start_time,crossed)
             self.data[i][2] = start_time.strftime("%H:%M:%S")
 
-
-
-
-
-        self.SetStatusText("SITPL Demo Application - RFID based Marathon Timer")
-        sz= self.p.GetSize()
-        self.p.Destroy()
-        self.initwin()
-        self.p.SetSize(sz)
-        print "button selected"
+            if(self.data[i][4]==datetime.timedelta(0)):
+                tag_time[i+1]=1
+            else:
+                tag_time[i+1]=0
 
     def OnButtonFocus(self,evt):
         self.SetStatusText("Updates the timing information.")
