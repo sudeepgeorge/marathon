@@ -15,6 +15,36 @@ tag_data={}
 tag_time={}
 
 #---------------------------------------------------------------------------
+class CustomStatusBar(wx.StatusBar):
+    def __init__(self, parent):
+        wx.StatusBar.__init__(self, parent, -1)
+
+        # This status bar has three fields
+        self.SetFieldsCount(2)
+        # Sets the three fields to be relative widths to each other.
+        self.SetStatusWidths([-1,-1])
+        
+                
+        # Field 0 ... just text
+        self.SetStatusText("SITPL Demo Application", 0)
+
+
+        # We're going to use a timer to drive a 'clock' in the last
+        # field.
+        #self.timer = wx.PyTimer(self.Notify)
+        #self.timer.Start(1000)
+        #self.Notify()
+
+
+    # Handles events from the timer we started in __init__().
+    # We're using it to drive a 'clock' in field 2 (the third field).
+    def Notify(self):
+        t = time.localtime(time.time())
+        st = time.strftime("%d-%b-%Y   %H:%M:%S", t)
+        self.SetStatusText(st, 1)
+        
+
+#---------------------------------------------------------------------------
 class CustomDataTable(gridlib.PyGridTableBase):
     def __init__(self,data):
         self.data= data
@@ -49,8 +79,7 @@ class CustomDataTable(gridlib.PyGridTableBase):
         self.GetView().ProcessTableMessage(msg)
         
         
-        self.GetView().EndBatch()
-
+        self.GetView().EndBatch()      
 
 
 
@@ -284,15 +313,18 @@ class TestFrame(wx.Frame):
         menuFile.AppendSeparator()
         menuFile.Append(2, "&About Marathon Timer")
         menuFile.AppendSeparator()
-        menuFile.Append(3, "E&xit")
+        menuFile.Append(3, "&Save")
+        menuFile.AppendSeparator()
+        menuFile.Append(4, "E&xit")
         menuBar = wx.MenuBar()
         menuBar.Append(menuFile, "&File")
         self.SetMenuBar(menuBar)
-        self.CreateStatusBar()
-        self.SetStatusText("SITPL Demo Application - RFID based Marathon Timer")
+        self.sb = CustomStatusBar(self)
+        self.SetStatusBar(self.sb)
         self.Bind(wx.EVT_MENU, self.OnTime, id=1)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=2)
-        self.Bind(wx.EVT_MENU, self.OnQuit, id=3)
+        self.Bind(wx.EVT_MENU, self.OnSave, id=3)
+        self.Bind(wx.EVT_MENU, self.OnQuit, id=4)
 
     def OnQuit(self, event):
         self.Close()
@@ -327,8 +359,28 @@ class TestFrame(wx.Frame):
 
     def OnButton(self, evt):
         self.updateData()
-        self.SetStatusText("SITPL Demo Application - RFID based Marathon Timer")
         self.grid.Update()
+        self.sb.SetStatusText("SITPL Demo Application",0)
+        
+    
+    def OnSave(self,event):
+        now=datetime.datetime.now().strftime("%H:%M:%S")
+        name="MLog_"+now+".csv"
+        
+        
+        try:
+            log=open(name,"wb")
+           
+            for i in range(ROWS):
+                data = str(self.data[i][0])+","+str(self.data[i][1])+","+str(self.data[i][4])+"\n"
+                log.write(data)
+                 
+        except:
+            print "Failed to save the log file: ", name
+            raise
+            
+        finally:
+            log.close()
 
 
     def updateData(self):
@@ -352,7 +404,7 @@ class TestFrame(wx.Frame):
                 tag_time[i+1]=0
 
     def OnButtonFocus(self,evt):
-        self.SetStatusText("Updates the timing information.")
+        self.sb.SetStatusText("Updates the timing information.",0)
 
     def OnCloseWindow(self,event):
         self.tag.abort()
