@@ -365,9 +365,9 @@ class TestFrame(wx.Frame):
         
     
     def OnSave(self,event):
-        now=datetime.datetime.now().strftime("%H:%M:%S")
+        now=datetime.datetime.now().strftime("%d%m%y%H%M%S")
         log_name="MLog_"+now+".csv"
-        name = os.getcwd()+"/"+log_name
+        name = os.path.join(os.getcwd(),log_name)
         
         
         try:
