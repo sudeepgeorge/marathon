@@ -6,6 +6,7 @@ import threading
 import serial
 import sys
 import random
+import os
 
 global start_time
 
@@ -365,7 +366,8 @@ class TestFrame(wx.Frame):
     
     def OnSave(self,event):
         now=datetime.datetime.now().strftime("%H:%M:%S")
-        name="MLog_"+now+".csv"
+        log_name="MLog_"+now+".csv"
+        name = os.getcwd()+"/"+log_name
         
         
         try:
@@ -374,14 +376,13 @@ class TestFrame(wx.Frame):
             for i in range(ROWS):
                 data = str(self.data[i][0])+","+str(self.data[i][1])+","+str(self.data[i][4])+"\n"
                 log.write(data)
+                
+            log.close()
                  
         except:
             print "Failed to save the log file: ", name
             raise
-            
-        finally:
-            log.close()
-
+         
 
     def updateData(self):
         global start_time     
