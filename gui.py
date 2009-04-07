@@ -171,12 +171,12 @@ class CustTableGrid(gridlib.Grid):
         self.table.Update()
         for i in range(1,ROWS+1):
             if(tag_time[i]==0):
-                self.SetAttr((i-1),4,self.red_attr)
+                self.SetRowAttr((i-1),self.red_attr)
                 self.red_attr.IncRef()
-            else:
-                self.SetAttr((i-1),4,self.white_attr)
-                self.white_attr.IncRef()
-                
+            #else:
+            #    self.SetAttr((i-1),4,self.white_attr)
+            #    self.white_attr.IncRef()
+
 
 
 #---------------------------------------------------------------------------
